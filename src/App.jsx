@@ -40,7 +40,7 @@ function App() {
         setProducts(productsList);
       } catch (error) {
         console.error(
-          "Ошибка загрузки товаров:",
+          "Mahsulotlarni yuklashda xatolik:",
           error
         );
       } finally {
@@ -52,7 +52,7 @@ function App() {
   }, []);
 
   // =========================
-  // КОРЗИНА
+  // SAVATCHA
   // =========================
 
   function addToCart(product) {
@@ -132,7 +132,7 @@ function App() {
   );
 
   // =========================
-  // LOADING
+  // YUKLANMOQDA
   // =========================
 
   if (loading) {
@@ -142,13 +142,13 @@ function App() {
           🍔
         </div>
 
-        <p>Загружаем меню...</p>
+        <p>Menyu yuklanmoqda...</p>
       </div>
     );
   }
 
   // =========================
-  // APP
+  // ASOSIY SAHIFA
   // =========================
 
   return (
@@ -166,13 +166,13 @@ function App() {
           <h1>Hot-Dog</h1>
 
           <p>
-            Вкусные хот-доги рядом с вами
+            Mazali hot-doglar sizga yaqin
           </p>
         </div>
 
       </header>
 
-      {/* TELEGRAM USER */}
+      {/* TELEGRAM FOYDALANUVCHI */}
 
       {telegramUser && (
         <div className="user-info">
@@ -186,12 +186,12 @@ function App() {
           <div>
 
             <strong>
-              Привет,{" "}
+              Salom,{" "}
               {telegramUser.first_name}! 👋
             </strong>
 
             <span>
-              Рады видеть вас
+              Sizni ko‘rganimizdan xursandmiz
             </span>
 
           </div>
@@ -199,21 +199,21 @@ function App() {
         </div>
       )}
 
-      {/* MENU HEADER */}
+      {/* MENYU */}
 
       <div className="section-title">
 
         <h2>
-          Наше меню
+          Bizning menyu
         </h2>
 
         <span>
-          {products.length} товара
+          {products.length} ta mahsulot
         </span>
 
       </div>
 
-      {/* PRODUCTS */}
+      {/* MAHSULOTLAR */}
 
       <div className="products">
 
@@ -248,7 +248,7 @@ function App() {
                     {Number(
                       product.price
                     ).toLocaleString()}{" "}
-                    сум
+                    so‘m
                   </strong>
 
                   {quantity === 0 ? (
@@ -260,7 +260,7 @@ function App() {
                         addToCart(product)
                       }
                     >
-                      Добавить
+                      Savatga qo‘shish
                     </button>
 
                   ) : (
@@ -307,7 +307,7 @@ function App() {
 
       </div>
 
-      {/* CART BUTTON */}
+      {/* SAVATCHA TUGMASI */}
 
       {cartQuantity > 0 && (
         <button
@@ -325,19 +325,19 @@ function App() {
             </span>
 
             <span>
-              Корзина
+              Savat
             </span>
 
           </div>
 
           <strong>
-            {cartTotal.toLocaleString()} сум
+            {cartTotal.toLocaleString()} so‘m
           </strong>
 
         </button>
       )}
 
-      {/* CART */}
+      {/* SAVATCHA */}
 
       {cartOpen && (
 
@@ -355,12 +355,12 @@ function App() {
             }
           >
 
-            {/* CART HEADER */}
+            {/* SAVATCHA SARLAVHASI */}
 
             <div className="cart-header">
 
               <h2>
-                🛒 Корзина
+                🛒 Savat
               </h2>
 
               <button
@@ -375,7 +375,7 @@ function App() {
 
             </div>
 
-            {/* EMPTY */}
+            {/* BO‘SH SAVAT */}
 
             {cart.length === 0 ? (
 
@@ -386,7 +386,7 @@ function App() {
                 </div>
 
                 <p>
-                  Корзина пустая
+                  Savat bo‘sh
                 </p>
 
               </div>
@@ -395,7 +395,7 @@ function App() {
 
               <>
 
-                {/* ITEMS */}
+                {/* MAHSULOTLAR */}
 
                 <div className="cart-items">
 
@@ -420,7 +420,7 @@ function App() {
                           {Number(
                             item.price
                           ).toLocaleString()}{" "}
-                          сум
+                          so‘m
                         </span>
 
                         <div className="cart-quantity">
@@ -461,7 +461,7 @@ function App() {
                           Number(item.price) *
                           item.quantity
                         ).toLocaleString()}{" "}
-                        сум
+                        so‘m
 
                       </strong>
 
@@ -471,34 +471,34 @@ function App() {
 
                 </div>
 
-                {/* TOTAL */}
+                {/* JAMI */}
 
                 <div className="cart-total">
 
                   <span>
-                    Итого
+                    Jami
                   </span>
 
                   <strong>
                     {cartTotal.toLocaleString()}{" "}
-                    сум
+                    so‘m
                   </strong>
 
                 </div>
 
-                {/* CHECKOUT */}
+                {/* BUYURTMA */}
 
                 <button
                   type="button"
                   className="checkout-button"
                   onClick={() => {
                     console.log(
-                      "Заказ:",
+                      "Buyurtma:",
                       cart
                     );
                   }}
                 >
-                  Оформить заказ
+                  Buyurtma berish
                 </button>
 
               </>
