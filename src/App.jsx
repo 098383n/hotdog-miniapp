@@ -1,4 +1,3 @@
-  
 import { useEffect, useState } from "react";
 import {
   collection,
@@ -30,6 +29,42 @@ function App() {
   // =========================
 
   useEffect(() => {
+    async function checkAdmin(telegramId) {
+      // Firestore "==" ishlashi uchun telegramId turi (string yoki number)
+      // bazadagi qiymat bilan aynan bir xil bo'lishi kerak.
+      // Bazada qanday saqlanganini bilmasak ham ishlashi uchun,
+      // ikkala turni ham tekshiramiz.
+      const idAsNumber = Number(telegramId);
+      const idAsString = String(telegramId);
+
+      const candidates = Number.isNaN(idAsNumber)
+        ? [idAsString]
+        : [idAsNumber, idAsString];
+
+      for (const candidateId of candidates) {
+        const adminQuery = query(
+          collection(db, "users"),
+          where("telegramId", "==", candidateId),
+          where("role", "==", "admin"),
+          limit(1)
+        );
+
+        const adminSnapshot = await getDocs(adminQuery);
+
+        console.log(
+          `Admin tekshiruvi (telegramId=${candidateId}, turi=${typeof candidateId}):`,
+          adminSnapshot.size,
+          "ta hujjat topildi"
+        );
+
+        if (!adminSnapshot.empty) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
     async function initializeApp() {
       try {
         const tg = window.Telegram?.WebApp;
@@ -53,7 +88,9 @@ function App() {
             setTelegramUser(user);
           }
         } else {
-          console.log("Telegram WebApp topilmadi");
+          console.log(
+            "Telegram WebApp topilmadi. Ilova Telegram ichida ochilmagan bo'lishi mumkin."
+          );
         }
 
         // =========================
@@ -66,43 +103,27 @@ function App() {
             user.id
           );
 
-          const adminQuery = query(
-            collection(db, "users"),
-            where("telegramId", "==", user.id),
-            where("role", "==", "admin"),
-            limit(1)
-          );
+          const isUserAdmin = await checkAdmin(user.id);
 
-          const adminSnapshot = await getDocs(adminQuery);
-
-          console.log(
-            "Admin hujjatlari:",
-            adminSnapshot.size
-          );
-
-          if (!adminSnapshot.empty) {
+          if (isUserAdmin) {
             console.log("ADMIN TOPILDI!");
-
             setIsAdmin(true);
           } else {
             console.log(
-              "Bu Telegram foydalanuvchi admin emas."
+              "Bu Telegram foydalanuvchi admin emas (yoki 'users' collectionida mos hujjat yo'q)."
             );
-
             setIsAdmin(false);
           }
         } else {
-          console.log(
-            "Telegram ID topilmadi."
-          );
-
+          console.log("Telegram ID topilmadi.");
           setIsAdmin(false);
         }
       } catch (error) {
-        console.error(
-          "Admin tekshirishda xatolik:",
-          error
-        );
+        // Bu yerda ko'pincha Firestore Security Rules ruxsat bermasa
+        // ("permission-denied") yoki tarmoq muammosi bo'lsa xatolik chiqadi.
+        console.error("Admin tekshirishda xatolik:", error);
+        console.error("Xatolik kodi:", error?.code);
+        console.error("Xatolik matni:", error?.message);
 
         setIsAdmin(false);
       } finally {
@@ -125,10 +146,7 @@ function App() {
 
         setProducts(productsList);
 
-        console.log(
-          "Mahsulotlar:",
-          productsList
-        );
+        console.log("Mahsulotlar:", productsList);
       } catch (error) {
         console.error(
           "Mahsulotlarni yuklashda xatolik:",
@@ -149,13 +167,8 @@ function App() {
   if (adminChecking) {
     return (
       <div className="loading">
-        <div className="loading-icon">
-          👑
-        </div>
-
-        <p>
-          Foydalanuvchi tekshirilmoqda...
-        </p>
+        <div className="loading-icon">👑</div>
+        <p>Foydalanuvchi tekshirilmoqda...</p>
       </div>
     );
   }
@@ -175,13 +188,8 @@ function App() {
   if (loading) {
     return (
       <div className="loading">
-        <div className="loading-icon">
-          🍔
-        </div>
-
-        <p>
-          Menyu yuklanmoqda...
-        </p>
+        <div className="loading-icon">🍔</div>
+        <p>Menyu yuklanmoqda...</p>
       </div>
     );
   }
@@ -246,24 +254,18 @@ function App() {
   }
 
   function getQuantity(id) {
-    const item = cart.find(
-      (item) => item.id === id
-    );
-
+    const item = cart.find((item) => item.id === id);
     return item ? item.quantity : 0;
   }
 
   const cartQuantity = cart.reduce(
-    (total, item) =>
-      total + item.quantity,
+    (total, item) => total + item.quantity,
     0
   );
 
   const cartTotal = cart.reduce(
     (total, item) =>
-      total +
-      Number(item.price) *
-        item.quantity,
+      total + Number(item.price) * item.quantity,
     0
   );
 
@@ -273,32 +275,21 @@ function App() {
 
   return (
     <div className="app">
-
       {/* HEADER */}
 
       <header className="header">
-
-        <div className="logo">
-          🍔
-        </div>
+        <div className="logo">🍔</div>
 
         <div>
-          <h1>
-            Hot-Dog
-          </h1>
-
-          <p>
-            Mazali hot-doglar sizga yaqin
-          </p>
+          <h1>Hot-Dog</h1>
+          <p>Mazali hot-doglar sizga yaqin</p>
         </div>
-
       </header>
 
       {/* TELEGRAM USER */}
 
       {telegramUser && (
         <div className="user-info">
-
           <div className="user-avatar">
             {telegramUser.first_name
               ?.charAt(0)
@@ -306,327 +297,195 @@ function App() {
           </div>
 
           <div>
-
             <strong>
-              Salom,{" "}
-              {telegramUser.first_name}! 👋
+              Salom, {telegramUser.first_name}! 👋
             </strong>
-
-            <span>
-              Sizni ko‘rganimizdan xursandmiz
-            </span>
-
+            <span>Sizni ko‘rganimizdan xursandmiz</span>
           </div>
-
         </div>
       )}
 
       {/* MENU */}
 
       <div className="section-title">
-
-        <h2>
-          Bizning menyu
-        </h2>
-
-        <span>
-          {products.length} ta mahsulot
-        </span>
-
+        <h2>Bizning menyu</h2>
+        <span>{products.length} ta mahsulot</span>
       </div>
 
       {/* PRODUCTS */}
 
       <div className="products">
-
         {products.map((product) => {
-
-          const quantity =
-            getQuantity(product.id);
+          const quantity = getQuantity(product.id);
 
           return (
-            <div
-              className="product-card"
-              key={product.id}
-            >
-
-              <div className="product-image">
-                🍔
-              </div>
+            <div className="product-card" key={product.id}>
+              <div className="product-image">🍔</div>
 
               <div className="product-content">
-
-                <h2>
-                  {product.name}
-                </h2>
-
-                <p>
-                  {product.description}
-                </p>
+                <h2>{product.name}</h2>
+                <p>{product.description}</p>
 
                 <div className="product-bottom">
-
                   <strong>
-                    {Number(
-                      product.price
-                    ).toLocaleString()}{" "}
+                    {Number(product.price).toLocaleString()}{" "}
                     so‘m
                   </strong>
 
                   {quantity === 0 ? (
-
                     <button
                       type="button"
                       className="add-button"
-                      onClick={() =>
-                        addToCart(product)
-                      }
+                      onClick={() => addToCart(product)}
                     >
                       Savatga qo‘shish
                     </button>
-
                   ) : (
-
                     <div className="quantity-control">
-
                       <button
                         type="button"
                         onClick={() =>
-                          decreaseQuantity(
-                            product.id
-                          )
+                          decreaseQuantity(product.id)
                         }
                       >
                         −
                       </button>
 
-                      <span>
-                        {quantity}
-                      </span>
+                      <span>{quantity}</span>
 
                       <button
                         type="button"
                         onClick={() =>
-                          increaseQuantity(
-                            product.id
-                          )
+                          increaseQuantity(product.id)
                         }
                       >
                         +
                       </button>
-
                     </div>
-
                   )}
-
                 </div>
-
               </div>
-
             </div>
           );
         })}
-
       </div>
 
       {/* CART BAR */}
 
       {cartQuantity > 0 && (
-
         <button
           type="button"
           className="cart-bar"
-          onClick={() =>
-            setCartOpen(true)
-          }
+          onClick={() => setCartOpen(true)}
         >
-
           <div>
-
-            <span className="cart-count">
-              {cartQuantity}
-            </span>
-
-            <span>
-              Savat
-            </span>
-
+            <span className="cart-count">{cartQuantity}</span>
+            <span>Savat</span>
           </div>
 
-          <strong>
-            {cartTotal.toLocaleString()} so‘m
-          </strong>
-
+          <strong>{cartTotal.toLocaleString()} so‘m</strong>
         </button>
-
       )}
 
       {/* CART */}
 
       {cartOpen && (
-
         <div
           className="cart-overlay"
-          onClick={() =>
-            setCartOpen(false)
-          }
+          onClick={() => setCartOpen(false)}
         >
-
           <div
             className="cart-sheet"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => event.stopPropagation()}
           >
-
             <div className="cart-header">
-
-              <h2>
-                🛒 Savat
-              </h2>
+              <h2>🛒 Savat</h2>
 
               <button
                 type="button"
                 className="close-cart"
-                onClick={() =>
-                  setCartOpen(false)
-                }
+                onClick={() => setCartOpen(false)}
               >
                 ×
               </button>
-
             </div>
 
             {cart.length === 0 ? (
-
               <div className="empty-cart">
-
-                <div>
-                  🛒
-                </div>
-
-                <p>
-                  Savat bo‘sh
-                </p>
-
+                <div>🛒</div>
+                <p>Savat bo‘sh</p>
               </div>
-
             ) : (
-
               <>
-
                 <div className="cart-items">
-
                   {cart.map((item) => (
-
-                    <div
-                      className="cart-item"
-                      key={item.id}
-                    >
-
-                      <div className="cart-item-image">
-                        🍔
-                      </div>
+                    <div className="cart-item" key={item.id}>
+                      <div className="cart-item-image">🍔</div>
 
                       <div className="cart-item-info">
-
-                        <strong>
-                          {item.name}
-                        </strong>
+                        <strong>{item.name}</strong>
 
                         <span>
-                          {Number(
-                            item.price
-                          ).toLocaleString()}{" "}
+                          {Number(item.price).toLocaleString()}{" "}
                           so‘m
                         </span>
 
                         <div className="cart-quantity">
-
                           <button
                             type="button"
                             onClick={() =>
-                              decreaseQuantity(
-                                item.id
-                              )
+                              decreaseQuantity(item.id)
                             }
                           >
                             −
                           </button>
 
-                          <span>
-                            {item.quantity}
-                          </span>
+                          <span>{item.quantity}</span>
 
                           <button
                             type="button"
                             onClick={() =>
-                              increaseQuantity(
-                                item.id
-                              )
+                              increaseQuantity(item.id)
                             }
                           >
                             +
                           </button>
-
                         </div>
-
                       </div>
 
                       <strong className="cart-item-total">
-
                         {(
-                          Number(item.price) *
-                          item.quantity
+                          Number(item.price) * item.quantity
                         ).toLocaleString()}{" "}
                         so‘m
-
                       </strong>
-
                     </div>
-
                   ))}
-
                 </div>
 
                 <div className="cart-total">
-
-                  <span>
-                    Jami
-                  </span>
-
+                  <span>Jami</span>
                   <strong>
                     {cartTotal.toLocaleString()} so‘m
                   </strong>
-
                 </div>
 
                 <button
                   type="button"
                   className="checkout-button"
                   onClick={() => {
-                    console.log(
-                      "Buyurtma:",
-                      cart
-                    );
+                    console.log("Buyurtma:", cart);
                   }}
                 >
                   Buyurtma berish
                 </button>
-
               </>
-
             )}
-
           </div>
-
         </div>
-
       )}
-
     </div>
   );
 }
 
 export default App;
-
