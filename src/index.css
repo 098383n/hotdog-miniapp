@@ -11,14 +11,30 @@ body {
   min-height: 100%;
 }
 
+html {
+  background: #f5f5f5;
+}
+
 body {
   background: #f5f5f5;
   font-family: Arial, sans-serif;
   color: #171717;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button {
   font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+button:hover {
+  opacity: 0.92;
 }
 
 #root {
@@ -26,7 +42,9 @@ button {
   min-height: 100vh;
 }
 
-/* APP */
+/* =========================
+   APP
+========================= */
 
 .app {
   width: 100%;
@@ -35,7 +53,9 @@ button {
   padding: 20px 16px 110px;
 }
 
-/* LOADING */
+/* =========================
+   LOADING
+========================= */
 
 .loading {
   min-height: 100vh;
@@ -51,7 +71,14 @@ button {
   margin-bottom: 12px;
 }
 
-/* HEADER */
+.loading p {
+  margin: 0;
+  color: #777;
+}
+
+/* =========================
+   HEADER
+========================= */
 
 .header {
   display: flex;
@@ -73,6 +100,7 @@ button {
   border-radius: 18px;
 
   font-size: 32px;
+  box-shadow: 0 5px 15px rgba(255, 183, 3, 0.2);
 }
 
 .header h1 {
@@ -86,7 +114,9 @@ button {
   font-size: 13px;
 }
 
-/* USER */
+/* =========================
+   USER
+========================= */
 
 .user-info {
   display: flex;
@@ -98,6 +128,7 @@ button {
   margin-bottom: 24px;
 
   border-radius: 18px;
+
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
 }
 
@@ -129,7 +160,9 @@ button {
   font-size: 12px;
 }
 
-/* SECTION */
+/* =========================
+   SECTION
+========================= */
 
 .section-title {
   display: flex;
@@ -149,7 +182,9 @@ button {
   font-size: 13px;
 }
 
-/* PRODUCTS */
+/* =========================
+   PRODUCTS
+========================= */
 
 .products {
   display: flex;
@@ -167,6 +202,14 @@ button {
   border-radius: 20px;
 
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.product-card:active {
+  transform: scale(0.985);
 }
 
 .product-image {
@@ -215,9 +258,13 @@ button {
   font-size: 16px;
 }
 
-/* ADD BUTTON */
+/* =========================
+   ADD BUTTON
+========================= */
 
 .add-button {
+  min-height: 38px;
+
   border: none;
   border-radius: 11px;
 
@@ -233,10 +280,12 @@ button {
 }
 
 .add-button:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
-/* QUANTITY */
+/* =========================
+   QUANTITY
+========================= */
 
 .quantity-control {
   display: flex;
@@ -249,6 +298,12 @@ button {
   width: 31px;
   height: 31px;
 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
   border: none;
   border-radius: 10px;
 
@@ -260,6 +315,11 @@ button {
   cursor: pointer;
 }
 
+.quantity-control button:active,
+.cart-quantity button:active {
+  transform: scale(0.9);
+}
+
 .quantity-control span {
   min-width: 18px;
 
@@ -267,7 +327,9 @@ button {
   font-weight: bold;
 }
 
-/* CART BAR */
+/* =========================
+   CART BAR
+========================= */
 
 .cart-bar {
   position: fixed;
@@ -279,6 +341,7 @@ button {
 
   width: calc(100% - 28px);
   max-width: 570px;
+  min-height: 56px;
 
   z-index: 900;
 
@@ -326,7 +389,13 @@ button {
   font-size: 14px;
 }
 
-/* CART OVERLAY */
+.cart-bar:active {
+  transform: translateX(-50%) scale(0.98);
+}
+
+/* =========================
+   CART OVERLAY
+========================= */
 
 .cart-overlay {
   position: fixed;
@@ -338,9 +407,14 @@ button {
 
   display: flex;
   align-items: flex-end;
+
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
-/* CART SHEET */
+/* =========================
+   CART SHEET
+========================= */
 
 .cart-sheet {
   width: 100%;
@@ -357,6 +431,8 @@ button {
 
   padding: 20px 16px 25px;
 
+  box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.15);
+
   animation: cartUp 0.25s ease;
 }
 
@@ -370,7 +446,9 @@ button {
   }
 }
 
-/* CART HEADER */
+/* =========================
+   CART HEADER
+========================= */
 
 .cart-header {
   display: flex;
@@ -389,6 +467,12 @@ button {
   width: 35px;
   height: 35px;
 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
   border: none;
   border-radius: 50%;
 
@@ -403,7 +487,9 @@ button {
   transform: scale(0.94);
 }
 
-/* CART ITEMS */
+/* =========================
+   CART ITEMS
+========================= */
 
 .cart-items {
   display: flex;
@@ -458,7 +544,9 @@ button {
   font-size: 12px;
 }
 
-/* CART QUANTITY */
+/* =========================
+   CART QUANTITY
+========================= */
 
 .cart-quantity {
   display: flex;
@@ -480,7 +568,9 @@ button {
   font-size: 13px;
 }
 
-/* CART TOTAL */
+/* =========================
+   CART TOTAL
+========================= */
 
 .cart-total {
   display: flex;
@@ -501,10 +591,14 @@ button {
   font-size: 19px;
 }
 
-/* CHECKOUT */
+/* =========================
+   CHECKOUT
+========================= */
 
 .checkout-button {
   width: 100%;
+
+  min-height: 52px;
 
   margin-top: 15px;
   padding: 15px;
@@ -525,7 +619,9 @@ button {
   transform: scale(0.98);
 }
 
-/* EMPTY CART */
+/* =========================
+   EMPTY CART
+========================= */
 
 .empty-cart {
   padding: 45px 20px;
@@ -544,11 +640,21 @@ button {
   margin: 0;
 }
 
-/* MOBILE */
+/* =========================
+   MOBILE
+========================= */
 
 @media (max-width: 420px) {
   .app {
     padding: 16px 12px 105px;
+  }
+
+  .header h1 {
+    font-size: 25px;
+  }
+
+  .header p {
+    font-size: 12px;
   }
 
   .product-card {
@@ -575,6 +681,50 @@ button {
 
   .cart-item-total {
     font-size: 11px;
+  }
+}
+
+/* =========================
+   VERY SMALL TELEGRAM SCREEN
+========================= */
+
+@media (max-width: 360px) {
+  .app {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .logo {
+    width: 52px;
+    height: 52px;
+    font-size: 28px;
+  }
+
+  .header {
+    gap: 10px;
+  }
+
+  .header h1 {
+    font-size: 23px;
+  }
+
+  .product-image {
+    width: 64px;
+    height: 64px;
+    font-size: 30px;
+  }
+
+  .add-button {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .cart-item {
+    gap: 8px;
+  }
+
+  .cart-item-total {
+    font-size: 10px;
   }
 }
 

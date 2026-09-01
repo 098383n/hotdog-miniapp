@@ -1,6 +1,12 @@
 
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  limit,
+} from "firebase/firestore";
 import { db } from "./firebase/config";
 import "./App.css";
 
@@ -8,25 +14,66 @@ function App() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [telegramUser, setTelegramUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
+    async function initializeApp() {
+      // =========================
+      // TELEGRAM
+      // =========================
 
-    if (tg) {
-      tg.ready();
-      tg.expand();
+      const tg = window.Telegram?.WebApp;
 
-      const user = tg.initDataUnsafe?.user;
+      let user = null;
 
-      if (user) {
-        setTelegramUser(user);
+      if (tg) {
+        tg.ready();
+        tg.expand();
+
+        user = tg.initDataUnsafe?.user;
+
+        if (user) {
+          setTelegramUser(user);
+
+          console.log("Telegram user:", user);
+
+          // =========================
+          // ПРОВЕРКА АДМИНИСТРАТОРА
+          // =========================
+
+          try {
+            const adminQuery = query(
+              collection(db, "users"),
+              where("telegramId", "==", user.id),
+              where("role", "==", "admin"),
+              limit(1)
+            );
+
+            const adminSnapshot = await getDocs(adminQuery);
+
+            if (!adminSnapshot.empty) {
+              setIsAdmin(true);
+              console.log("Admin: ha");
+            } else {
+              setIsAdmin(false);
+              console.log("Admin: yo'q");
+            }
+          } catch (error) {
+            console.error(
+              "Adminni tekshirishda xatolik:",
+              error
+            );
+          }
+        }
       }
-    }
 
-    async function loadProducts() {
+      // =========================
+      // FIREBASE PRODUCTS
+      // =========================
+
       try {
         const snapshot = await getDocs(
           collection(db, "products")
@@ -48,7 +95,7 @@ function App() {
       }
     }
 
-    loadProducts();
+    initializeApp();
   }, []);
 
   // =========================
@@ -196,6 +243,29 @@ function App() {
 
           </div>
 
+        </div>
+      )}
+
+      {/* ADMIN */}
+
+      {isAdmin && (
+        <div className="admin-card">
+          <div>
+            <strong>👑 Admin</strong>
+            <span>
+              Siz administrator sifatida kirdingiz
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="admin-button"
+            onClick={() => {
+              console.log("Admin panel");
+            }}
+          >
+            Admin panel
+          </button>
         </div>
       )}
 
@@ -355,8 +425,6 @@ function App() {
             }
           >
 
-            {/* SAVATCHA SARLAVHASI */}
-
             <div className="cart-header">
 
               <h2>
@@ -375,8 +443,6 @@ function App() {
 
             </div>
 
-            {/* BO‘SH SAVAT */}
-
             {cart.length === 0 ? (
 
               <div className="empty-cart">
@@ -394,8 +460,6 @@ function App() {
             ) : (
 
               <>
-
-                {/* MAHSULOTLAR */}
 
                 <div className="cart-items">
 
@@ -471,8 +535,6 @@ function App() {
 
                 </div>
 
-                {/* JAMI */}
-
                 <div className="cart-total">
 
                   <span>
@@ -485,8 +547,6 @@ function App() {
                   </strong>
 
                 </div>
-
-                {/* BUYURTMA */}
 
                 <button
                   type="button"
