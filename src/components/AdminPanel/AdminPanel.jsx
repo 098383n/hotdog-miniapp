@@ -1,16 +1,16 @@
-
 import { useEffect, useState } from "react";
 import {
   collection,
   getDocs,
-  query,
-  where,
-  limit,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
 } from "firebase/firestore";
 
-import { db } from "./firebase/config";
-import AdminPanel from "./components/AdminPanel/AdminPanel";
-import "./App.css";
+import { db } from "../../firebase/config";
+import "./AdminPanel.css";
 
 function App() {
   const [products, setProducts] = useState([]);
@@ -20,26 +20,25 @@ function App() {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminChecking, setAdminChecking] = useState(true);
-  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
 
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
 
-  // =========================
-  // TELEGRAM + ADMIN + PRODUCTS
-  // =========================
+  // =====================================
+  // ИНИЦИАЛИЗАЦИЯ
+  // =====================================
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
 
     async function initializeApp() {
-      let user = null;
-
-      // =========================
-      // TELEGRAM
-      // =========================
-
       try {
+        let user = null;
+
+        // ================================
+        // TELEGRAM
+        // ================================
+
         if (tg) {
           tg.ready();
           tg.expand();
@@ -52,27 +51,13 @@ function App() {
           if (user) {
             setTelegramUser(user);
           }
-        } else {
-          console.log("Telegram WebApp topilmadi");
         }
-      } catch (error) {
-        console.error(
-          "Telegramni ishga tushirishda xatolik:",
-          error
-        );
-      }
 
-      // =========================
-      // ADMIN TEKSHIRUVI
-      // =========================
+        // ================================
+        // ПРОВЕРКА АДМИНА
+        // ================================
 
-      try {
         if (user?.id) {
-          console.log(
-            "Admin tekshirilmoqda. Telegram ID:",
-            user.id
-          );
-
           const adminQuery = query(
             collection(db, "users"),
             where("telegramId", "==", user.id),
@@ -83,28 +68,19 @@ function App() {
           const adminSnapshot = await getDocs(adminQuery);
 
           if (!adminSnapshot.empty) {
-            console.log(
-              "✅ ADMIN TASDIQLANDI"
-            );
-
+            console.log("ADMIN: доступ разрешён");
             setIsAdmin(true);
           } else {
-            console.log(
-              "❌ Bu foydalanuvchi admin emas"
-            );
-
+            console.log("USER: обычный пользователь");
             setIsAdmin(false);
           }
         } else {
-          console.log(
-            "❌ Telegram ID topilmadi"
-          );
-
+          console.log("Telegram пользователь не найден");
           setIsAdmin(false);
         }
       } catch (error) {
         console.error(
-          "Adminni tekshirishda xatolik:",
+          "Ошибка проверки администратора:",
           error
         );
 
@@ -113,28 +89,21 @@ function App() {
         setAdminChecking(false);
       }
 
-      // =========================
-      // MAHSULOTLARNI YUKLASH
-      // =========================
+      // ================================
+      // ЗАГРУЗКА ТОВАРОВ
+      // ================================
 
       try {
         const snapshot = await getDocs(
           collection(db, "products")
         );
 
-        const productsList = snapshot.docs.map(
-          (doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })
-        );
+        const productsList = snapshot.docs.map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }));
 
         setProducts(productsList);
-
-        console.log(
-          "Mahsulotlar:",
-          productsList
-        );
       } catch (error) {
         console.error(
           "Mahsulotlarni yuklashda xatolik:",
@@ -148,35 +117,9 @@ function App() {
     initializeApp();
   }, []);
 
-  // =========================
-  // MAHSULOTLARNI QAYTA YUKLASH
-  // =========================
-
-  async function reloadProducts() {
-    try {
-      const snapshot = await getDocs(
-        collection(db, "products")
-      );
-
-      const productsList = snapshot.docs.map(
-        (doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })
-      );
-
-      setProducts(productsList);
-    } catch (error) {
-      console.error(
-        "Mahsulotlarni qayta yuklashda xatolik:",
-        error
-      );
-    }
-  }
-
-  // =========================
+  // =====================================
   // SAVATCHA
-  // =========================
+  // =====================================
 
   function addToCart(product) {
     setCart((currentCart) => {
@@ -229,9 +172,7 @@ function App() {
               }
             : item
         )
-        .filter(
-          (item) => item.quantity > 0
-        )
+        .filter((item) => item.quantity > 0)
     );
   }
 
@@ -240,9 +181,7 @@ function App() {
       (item) => item.id === id
     );
 
-    return item
-      ? item.quantity
-      : 0;
+    return item ? item.quantity : 0;
   }
 
   const cartQuantity = cart.reduce(
@@ -254,16 +193,15 @@ function App() {
   const cartTotal = cart.reduce(
     (total, item) =>
       total +
-      Number(item.price) *
-        item.quantity,
+      Number(item.price) * item.quantity,
     0
   );
 
-  // =========================
+  // =====================================
   // LOADING
-  // =========================
+  // =====================================
 
-  if (loading) {
+  if (loading || adminChecking) {
     return (
       <div className="loading">
         <div className="loading-icon">
@@ -271,33 +209,25 @@ function App() {
         </div>
 
         <p>
-          Menyu yuklanmoqda...
+          Yuklanmoqda...
         </p>
       </div>
     );
   }
 
-  // =========================
+  // =====================================
   // ADMIN PANEL
-  // =========================
+  // =====================================
 
-  if (adminPanelOpen && isAdmin) {
+  if (isAdmin) {
     return (
-      <AdminPanel
-        products={products}
-        onClose={() =>
-          setAdminPanelOpen(false)
-        }
-        onProductsChanged={
-          reloadProducts
-        }
-      />
+      <AdminPanel />
     );
   }
 
-  // =========================
-  // ASOSIY SAHIFA
-  // =========================
+  // =====================================
+  // Обычный пользователь
+  // =====================================
 
   return (
     <div className="app">
@@ -330,15 +260,13 @@ function App() {
           <div className="user-avatar">
             {telegramUser.first_name
               ?.charAt(0)
-              ?.toUpperCase() ||
-              "👤"}
+              ?.toUpperCase() || "👤"}
           </div>
 
           <div>
 
             <strong>
-              Salom,{" "}
-              {telegramUser.first_name}! 👋
+              Salom, {telegramUser.first_name}! 👋
             </strong>
 
             <span>
@@ -349,35 +277,6 @@ function App() {
 
         </div>
       )}
-
-      {/* ADMIN */}
-
-      {!adminChecking &&
-        isAdmin && (
-          <div className="admin-info">
-
-            <div>
-              <strong>
-                👑 Admin
-              </strong>
-
-              <span>
-                Siz administrator sifatida kirdingiz
-              </span>
-            </div>
-
-            <button
-              type="button"
-              className="admin-panel-button"
-              onClick={() =>
-                setAdminPanelOpen(true)
-              }
-            >
-              Boshqaruv
-            </button>
-
-          </div>
-        )}
 
       {/* MENU */}
 
@@ -397,116 +296,100 @@ function App() {
 
       <div className="products">
 
-        {products.length === 0 ? (
+        {products.map((product) => {
 
-          <div className="empty-products">
-            <div>
-              🍔
-            </div>
+          const quantity =
+            getQuantity(product.id);
 
-            <p>
-              Hozircha mahsulotlar yo‘q
-            </p>
+          return (
+            <div
+              className="product-card"
+              key={product.id}
+            >
 
-          </div>
+              <div className="product-image">
+                🍔
+              </div>
 
-        ) : (
+              <div className="product-content">
 
-          products.map((product) => {
+                <h2>
+                  {product.name}
+                </h2>
 
-            const quantity =
-              getQuantity(product.id);
+                <p>
+                  {product.description}
+                </p>
 
-            return (
-              <div
-                className="product-card"
-                key={product.id}
-              >
+                <div className="product-bottom">
 
-                <div className="product-image">
-                  🍔
-                </div>
+                  <strong>
+                    {Number(
+                      product.price
+                    ).toLocaleString()}{" "}
+                    so‘m
+                  </strong>
 
-                <div className="product-content">
+                  {quantity === 0 ? (
 
-                  <h2>
-                    {product.name}
-                  </h2>
+                    <button
+                      type="button"
+                      className="add-button"
+                      onClick={() =>
+                        addToCart(product)
+                      }
+                    >
+                      Savatga qo‘shish
+                    </button>
 
-                  <p>
-                    {product.description}
-                  </p>
+                  ) : (
 
-                  <div className="product-bottom">
-
-                    <strong>
-                      {Number(
-                        product.price
-                      ).toLocaleString()}{" "}
-                      so‘m
-                    </strong>
-
-                    {quantity === 0 ? (
+                    <div className="quantity-control">
 
                       <button
                         type="button"
-                        className="add-button"
                         onClick={() =>
-                          addToCart(product)
+                          decreaseQuantity(
+                            product.id
+                          )
                         }
                       >
-                        Savatga qo‘shish
+                        −
                       </button>
 
-                    ) : (
+                      <span>
+                        {quantity}
+                      </span>
 
-                      <div className="quantity-control">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          increaseQuantity(
+                            product.id
+                          )
+                        }
+                      >
+                        +
+                      </button>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            decreaseQuantity(
-                              product.id
-                            )
-                          }
-                        >
-                          −
-                        </button>
+                    </div>
 
-                        <span>
-                          {quantity}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            increaseQuantity(
-                              product.id
-                            )
-                          }
-                        >
-                          +
-                        </button>
-
-                      </div>
-
-                    )}
-
-                  </div>
+                  )}
 
                 </div>
 
               </div>
-            );
-          })
 
-        )}
+            </div>
+          );
+        })}
 
       </div>
 
-      {/* SAVATCHA TUGMASI */}
+      {/* CART BUTTON */}
 
       {cartQuantity > 0 && (
+
         <button
           type="button"
           className="cart-bar"
@@ -532,9 +415,10 @@ function App() {
           </strong>
 
         </button>
+
       )}
 
-      {/* SAVATCHA */}
+      {/* CART */}
 
       {cartOpen && (
 
@@ -647,13 +531,11 @@ function App() {
                       </div>
 
                       <strong className="cart-item-total">
-
                         {(
                           Number(item.price) *
                           item.quantity
                         ).toLocaleString()}{" "}
                         so‘m
-
                       </strong>
 
                     </div>
@@ -702,4 +584,3 @@ function App() {
 }
 
 export default App;
-
