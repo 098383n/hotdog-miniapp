@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   collection,
@@ -12,575 +13,495 @@ import {
 import { db } from "../../firebase/config";
 import "./AdminPanel.css";
 
-function App() {
+function AdminPanel() {
   const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
+
   const [loading, setLoading] = useState(true);
 
-  const [telegramUser, setTelegramUser] = useState(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
 
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecking, setAdminChecking] = useState(true);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const [cart, setCart] = useState([]);
-  const [cartOpen, setCartOpen] = useState(false);
+  async function loadData() {
+    try {
+      setLoading(true);
 
-  // =====================================
-  // ИНИЦИАЛИЗАЦИЯ
-  // =====================================
+      const [productsSnapshot, ordersSnapshot, usersSnapshot] =
+        await Promise.all([
+          getDocs(collection(db, "products")),
+          getDocs(collection(db, "orders")),
+          getDocs(collection(db, "users")),
+        ]);
+
+      const productsList = productsSnapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+
+      const ordersList = ordersSnapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+
+      const usersList = usersSnapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+
+      setProducts(productsList);
+      setOrders(ordersList);
+      setUsers(usersList);
+    } catch (error) {
+      console.error(
+        "Admin ma'lumotlarini yuklashda xatolik:",
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-
-    async function initializeApp() {
-      try {
-        let user = null;
-
-        // ================================
-        // TELEGRAM
-        // ================================
-
-        if (tg) {
-          tg.ready();
-          tg.expand();
-
-          user = tg.initDataUnsafe?.user;
-
-          console.log("Telegram user:", user);
-          console.log("Telegram ID:", user?.id);
-
-          if (user) {
-            setTelegramUser(user);
-          }
-        }
-
-        // ================================
-        // ПРОВЕРКА АДМИНА
-        // ================================
-
-        if (user?.id) {
-          const adminQuery = query(
-            collection(db, "users"),
-            where("telegramId", "==", user.id),
-            where("role", "==", "admin"),
-            limit(1)
-          );
-
-          const adminSnapshot = await getDocs(adminQuery);
-
-          if (!adminSnapshot.empty) {
-            console.log("ADMIN: доступ разрешён");
-            setIsAdmin(true);
-          } else {
-            console.log("USER: обычный пользователь");
-            setIsAdmin(false);
-          }
-        } else {
-          console.log("Telegram пользователь не найден");
-          setIsAdmin(false);
-        }
-      } catch (error) {
-        console.error(
-          "Ошибка проверки администратора:",
-          error
-        );
-
-        setIsAdmin(false);
-      } finally {
-        setAdminChecking(false);
-      }
-
-      // ================================
-      // ЗАГРУЗКА ТОВАРОВ
-      // ================================
-
-      try {
-        const snapshot = await getDocs(
-          collection(db, "products")
-        );
-
-        const productsList = snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data(),
-        }));
-
-        setProducts(productsList);
-      } catch (error) {
-        console.error(
-          "Mahsulotlarni yuklashda xatolik:",
-          error
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    initializeApp();
+    loadData();
   }, []);
 
-  // =====================================
-  // SAVATCHA
-  // =====================================
+  async function saveProduct(event) {
+    event.preventDefault();
 
-  function addToCart(product) {
-    setCart((currentCart) => {
-      const existing = currentCart.find(
-        (item) => item.id === product.id
-      );
+    const productName = name.trim();
+    const productDescription = description.trim();
+    const productPrice = Number(price);
 
-      if (existing) {
-        return currentCart.map((item) =>
-          item.id === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-              }
-            : item
-        );
+    if (!productName) {
+      alert("Mahsulot nomini kiriting.");
+      return;
+    }
+
+    if (!productPrice || productPrice <= 0) {
+      alert("To'g'ri narx kiriting.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      if (editingId) {
+        await updateDoc(doc(db, "products", editingId), {
+          name: productName,
+          description: productDescription,
+          price: productPrice,
+          updatedAt: serverTimestamp(),
+        });
+
+        alert("Mahsulot yangilandi.");
+      } else {
+        await addDoc(collection(db, "products"), {
+          name: productName,
+          description: productDescription,
+          price: productPrice,
+          createdAt: serverTimestamp(),
+        });
+
+        alert("Mahsulot qo'shildi.");
       }
 
-      return [
-        ...currentCart,
-        {
-          ...product,
-          quantity: 1,
-        },
-      ];
+      resetForm();
+      await loadData();
+    } catch (error) {
+      console.error(
+        "Mahsulotni saqlashda xatolik:",
+        error
+      );
+
+      alert(
+        "Mahsulotni saqlashda xatolik yuz berdi."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function editProduct(product) {
+    setEditingId(product.id);
+    setName(product.name || "");
+    setDescription(product.description || "");
+    setPrice(product.price || "");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
     });
   }
 
-  function increaseQuantity(id) {
-    setCart((currentCart) =>
-      currentCart.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: item.quantity + 1,
-            }
-          : item
-      )
-    );
-  }
-
-  function decreaseQuantity(id) {
-    setCart((currentCart) =>
-      currentCart
-        .map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                quantity: item.quantity - 1,
-              }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  }
-
-  function getQuantity(id) {
-    const item = cart.find(
-      (item) => item.id === id
+  async function removeProduct(id) {
+    const confirmed = window.confirm(
+      "Bu mahsulotni o'chirishni xohlaysizmi?"
     );
 
-    return item ? item.quantity : 0;
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, "products", id));
+
+      if (editingId === id) {
+        resetForm();
+      }
+
+      await loadData();
+
+      alert("Mahsulot o'chirildi.");
+    } catch (error) {
+      console.error(
+        "Mahsulotni o'chirishda xatolik:",
+        error
+      );
+
+      alert(
+        "Mahsulotni o'chirishda xatolik yuz berdi."
+      );
+    }
   }
 
-  const cartQuantity = cart.reduce(
-    (total, item) =>
-      total + item.quantity,
-    0
-  );
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setDescription("");
+    setPrice("");
+  }
 
-  const cartTotal = cart.reduce(
-    (total, item) =>
-      total +
-      Number(item.price) * item.quantity,
-    0
-  );
-
-  // =====================================
-  // LOADING
-  // =====================================
-
-  if (loading || adminChecking) {
+  if (loading) {
     return (
-      <div className="loading">
-        <div className="loading-icon">
-          🍔
-        </div>
-
-        <p>
-          Yuklanmoqda...
-        </p>
+      <div className="admin-loading">
+        <h2>Admin panel yuklanmoqda...</h2>
       </div>
     );
   }
 
-  // =====================================
-  // ADMIN PANEL
-  // =====================================
-
-  if (isAdmin) {
-    return (
-      <AdminPanel />
-    );
-  }
-
-  // =====================================
-  // Обычный пользователь
-  // =====================================
-
   return (
-    <div className="app">
+    <div className="admin-panel">
 
-      {/* HEADER */}
-
-      <header className="header">
-
-        <div className="logo">
-          🍔
-        </div>
-
+      <div className="admin-header">
         <div>
+          <span className="admin-badge">
+            ADMIN
+          </span>
+
           <h1>
-            Hot-Dog
+            Boshqaruv paneli
           </h1>
 
           <p>
-            Mazali hot-doglar sizga yaqin
+            Hot-Dog do'konini boshqarish
           </p>
         </div>
+      </div>
 
-      </header>
+      {/* STATISTIKA */}
 
-      {/* TELEGRAM USER */}
+      <div className="admin-stats">
 
-      {telegramUser && (
-        <div className="user-info">
-
-          <div className="user-avatar">
-            {telegramUser.first_name
-              ?.charAt(0)
-              ?.toUpperCase() || "👤"}
-          </div>
-
-          <div>
-
-            <strong>
-              Salom, {telegramUser.first_name}! 👋
-            </strong>
-
-            <span>
-              Sizni ko‘rganimizdan xursandmiz
-            </span>
-
-          </div>
-
+        <div className="admin-stat">
+          <strong>{products.length}</strong>
+          <span>Mahsulotlar</span>
         </div>
-      )}
 
-      {/* MENU */}
+        <div className="admin-stat">
+          <strong>{orders.length}</strong>
+          <span>Buyurtmalar</span>
+        </div>
 
-      <div className="section-title">
+        <div className="admin-stat">
+          <strong>{users.length}</strong>
+          <span>Foydalanuvchilar</span>
+        </div>
+
+      </div>
+
+      {/* MAHSULOT QO'SHISH */}
+
+      <section className="admin-card">
 
         <h2>
-          Bizning menyu
+          {editingId
+            ? "Mahsulotni tahrirlash"
+            : "Yangi mahsulot qo'shish"}
         </h2>
 
-        <span>
-          {products.length} ta mahsulot
-        </span>
-
-      </div>
-
-      {/* PRODUCTS */}
-
-      <div className="products">
-
-        {products.map((product) => {
-
-          const quantity =
-            getQuantity(product.id);
-
-          return (
-            <div
-              className="product-card"
-              key={product.id}
-            >
-
-              <div className="product-image">
-                🍔
-              </div>
-
-              <div className="product-content">
-
-                <h2>
-                  {product.name}
-                </h2>
-
-                <p>
-                  {product.description}
-                </p>
-
-                <div className="product-bottom">
-
-                  <strong>
-                    {Number(
-                      product.price
-                    ).toLocaleString()}{" "}
-                    so‘m
-                  </strong>
-
-                  {quantity === 0 ? (
-
-                    <button
-                      type="button"
-                      className="add-button"
-                      onClick={() =>
-                        addToCart(product)
-                      }
-                    >
-                      Savatga qo‘shish
-                    </button>
-
-                  ) : (
-
-                    <div className="quantity-control">
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          decreaseQuantity(
-                            product.id
-                          )
-                        }
-                      >
-                        −
-                      </button>
-
-                      <span>
-                        {quantity}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          increaseQuantity(
-                            product.id
-                          )
-                        }
-                      >
-                        +
-                      </button>
-
-                    </div>
-
-                  )}
-
-                </div>
-
-              </div>
-
-            </div>
-          );
-        })}
-
-      </div>
-
-      {/* CART BUTTON */}
-
-      {cartQuantity > 0 && (
-
-        <button
-          type="button"
-          className="cart-bar"
-          onClick={() =>
-            setCartOpen(true)
-          }
+        <form
+          className="admin-form"
+          onSubmit={saveProduct}
         >
 
-          <div>
-
-            <span className="cart-count">
-              {cartQuantity}
-            </span>
-
-            <span>
-              Savat
-            </span>
-
-          </div>
-
-          <strong>
-            {cartTotal.toLocaleString()} so‘m
-          </strong>
-
-        </button>
-
-      )}
-
-      {/* CART */}
-
-      {cartOpen && (
-
-        <div
-          className="cart-overlay"
-          onClick={() =>
-            setCartOpen(false)
-          }
-        >
-
-          <div
-            className="cart-sheet"
-            onClick={(event) =>
-              event.stopPropagation()
+          <input
+            type="text"
+            placeholder="Mahsulot nomi"
+            value={name}
+            onChange={(event) =>
+              setName(event.target.value)
             }
-          >
+          />
 
-            <div className="cart-header">
+          <textarea
+            placeholder="Mahsulot tavsifi"
+            value={description}
+            onChange={(event) =>
+              setDescription(event.target.value)
+            }
+          />
 
-              <h2>
-                🛒 Savat
-              </h2>
+          <input
+            type="number"
+            placeholder="Narxi"
+            min="1"
+            value={price}
+            onChange={(event) =>
+              setPrice(event.target.value)
+            }
+          />
 
+          <div className="admin-form-buttons">
+
+            <button
+              type="submit"
+              className="admin-save-button"
+              disabled={saving}
+            >
+              {saving
+                ? "Saqlanmoqda..."
+                : editingId
+                ? "Saqlash"
+                : "Mahsulot qo'shish"}
+            </button>
+
+            {editingId && (
               <button
                 type="button"
-                className="close-cart"
-                onClick={() =>
-                  setCartOpen(false)
-                }
+                className="admin-cancel-button"
+                onClick={resetForm}
+                disabled={saving}
               >
-                ×
+                Bekor qilish
               </button>
-
-            </div>
-
-            {cart.length === 0 ? (
-
-              <div className="empty-cart">
-
-                <div>
-                  🛒
-                </div>
-
-                <p>
-                  Savat bo‘sh
-                </p>
-
-              </div>
-
-            ) : (
-
-              <>
-
-                <div className="cart-items">
-
-                  {cart.map((item) => (
-
-                    <div
-                      className="cart-item"
-                      key={item.id}
-                    >
-
-                      <div className="cart-item-image">
-                        🍔
-                      </div>
-
-                      <div className="cart-item-info">
-
-                        <strong>
-                          {item.name}
-                        </strong>
-
-                        <span>
-                          {Number(
-                            item.price
-                          ).toLocaleString()}{" "}
-                          so‘m
-                        </span>
-
-                        <div className="cart-quantity">
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              decreaseQuantity(
-                                item.id
-                              )
-                            }
-                          >
-                            −
-                          </button>
-
-                          <span>
-                            {item.quantity}
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              increaseQuantity(
-                                item.id
-                              )
-                            }
-                          >
-                            +
-                          </button>
-
-                        </div>
-
-                      </div>
-
-                      <strong className="cart-item-total">
-                        {(
-                          Number(item.price) *
-                          item.quantity
-                        ).toLocaleString()}{" "}
-                        so‘m
-                      </strong>
-
-                    </div>
-
-                  ))}
-
-                </div>
-
-                <div className="cart-total">
-
-                  <span>
-                    Jami
-                  </span>
-
-                  <strong>
-                    {cartTotal.toLocaleString()} so‘m
-                  </strong>
-
-                </div>
-
-                <button
-                  type="button"
-                  className="checkout-button"
-                  onClick={() => {
-                    console.log(
-                      "Buyurtma:",
-                      cart
-                    );
-                  }}
-                >
-                  Buyurtma berish
-                </button>
-
-              </>
-
             )}
 
           </div>
 
+        </form>
+
+      </section>
+
+      {/* MAHSULOTLAR */}
+
+      <section className="admin-card">
+
+        <div className="admin-section-header">
+
+          <h2>
+            Mahsulotlar
+          </h2>
+
+          <span>
+            {products.length} ta
+          </span>
+
         </div>
 
-      )}
+        <div className="admin-products">
+
+          {products.length === 0 ? (
+
+            <p className="admin-empty">
+              Hozircha mahsulotlar yo'q.
+            </p>
+
+          ) : (
+
+            products.map((product) => (
+
+              <div
+                className="admin-product"
+                key={product.id}
+              >
+
+                <div className="admin-product-info">
+
+                  <strong>
+                    {product.name}
+                  </strong>
+
+                  <span>
+                    {product.description ||
+                      "Tavsif yo'q"}
+                  </span>
+
+                  <b>
+                    {Number(
+                      product.price
+                    ).toLocaleString()}{" "}
+                    so'm
+                  </b>
+
+                </div>
+
+                <div className="admin-product-actions">
+
+                  <button
+                    type="button"
+                    className="admin-edit-button"
+                    onClick={() =>
+                      editProduct(product)
+                    }
+                  >
+                    Tahrirlash
+                  </button>
+
+                  <button
+                    type="button"
+                    className="admin-delete-button"
+                    onClick={() =>
+                      removeProduct(product.id)
+                    }
+                  >
+                    O'chirish
+                  </button>
+
+                </div>
+
+              </div>
+
+            ))
+
+          )}
+
+        </div>
+
+      </section>
+
+      {/* BUYURTMALAR */}
+
+      <section className="admin-card">
+
+        <div className="admin-section-header">
+
+          <h2>
+            Buyurtmalar
+          </h2>
+
+          <span>
+            {orders.length} ta
+          </span>
+
+        </div>
+
+        {orders.length === 0 ? (
+
+          <p className="admin-empty">
+            Hozircha buyurtmalar yo'q.
+          </p>
+
+        ) : (
+
+          <div className="admin-list">
+
+            {orders.map((order) => (
+
+              <div
+                className="admin-list-item"
+                key={order.id}
+              >
+
+                <strong>
+                  Buyurtma #{order.id}
+                </strong>
+
+                <span>
+                  Status:{" "}
+                  {order.status || "Yangi buyurtma"}
+                </span>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+      </section>
+
+      {/* FOYDALANUVCHILAR */}
+
+      <section className="admin-card">
+
+        <div className="admin-section-header">
+
+          <h2>
+            Foydalanuvchilar
+          </h2>
+
+          <span>
+            {users.length} ta
+          </span>
+
+        </div>
+
+        {users.length === 0 ? (
+
+          <p className="admin-empty">
+            Hozircha foydalanuvchilar yo'q.
+          </p>
+
+        ) : (
+
+          <div className="admin-list">
+
+            {users.map((user) => (
+
+              <div
+                className="admin-list-item"
+                key={user.id}
+              >
+
+                <strong>
+                  {user.firstName ||
+                    user.first_name ||
+                    "Noma'lum foydalanuvchi"}
+                </strong>
+
+                <span>
+                  @{user.username ||
+                    "username yo'q"}
+                </span>
+
+                <small>
+                  Telegram ID:{" "}
+                  {user.telegramId}
+                </small>
+
+                <small>
+                  Role:{" "}
+                  {user.role || "user"}
+                </small>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+      </section>
 
     </div>
   );
 }
 
-export default App;
+export default AdminPanel;
