@@ -42,10 +42,15 @@ function App() {
         : [idAsNumber, idAsString];
 
       for (const candidateId of candidates) {
+        // MUHIM: faqat bitta where() ishlatilmoqda (telegramId bo'yicha).
+        // Ikkita turli maydon bo'yicha (telegramId + role) composite query
+        // Firestore'da maxsus index talab qiladi va index bo'lmasa
+        // "failed-precondition" xatoligi bilan yiqiladi (catch blokida
+        // "ushlanib qoladi" va isAdmin jimgina false bo'lib qoladi).
+        // Shu sababli role tekshiruvini JS tomonida qilamiz.
         const adminQuery = query(
           collection(db, "users"),
           where("telegramId", "==", candidateId),
-          where("role", "==", "admin"),
           limit(1)
         );
 
@@ -58,7 +63,13 @@ function App() {
         );
 
         if (!adminSnapshot.empty) {
-          return true;
+          const userData = adminSnapshot.docs[0].data();
+
+          console.log("Topilgan foydalanuvchi role:", userData.role);
+
+          if (userData.role === "admin") {
+            return true;
+          }
         }
       }
 
@@ -91,6 +102,22 @@ function App() {
           console.log(
             "Telegram WebApp topilmadi. Ilova Telegram ichida ochilmagan bo'lishi mumkin."
           );
+
+          // VAQTINCHALIK: faqat lokal test uchun (production'da OLIB TASHLANG).
+          // Brauzerda quyidagicha ochib test qilish mumkin:
+          // http://localhost:3000/?admin_test_id=1874581050
+          const testId = new URLSearchParams(
+            window.location.search
+          ).get("admin_test_id");
+
+          if (testId) {
+            user = { id: testId, first_name: "Test Admin" };
+            console.log(
+              "DEV MODE: URL orqali test Telegram ID ishlatilmoqda:",
+              testId
+            );
+            setTelegramUser(user);
+          }
         }
 
         // =========================
