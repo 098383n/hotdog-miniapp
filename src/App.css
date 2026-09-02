@@ -1,4 +1,3 @@
-
 * {
   box-sizing: border-box;
 }
@@ -112,6 +111,32 @@ button:hover {
   margin: 4px 0 0;
   color: #777;
   font-size: 13px;
+}
+
+/* =========================
+   ADMIN PANELGA QAYTISH
+========================= */
+
+.back-to-admin-button {
+  width: 100%;
+
+  margin-bottom: 16px;
+  padding: 12px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: #171717;
+  color: #ffb703;
+
+  font-size: 13px;
+  font-weight: bold;
+
+  cursor: pointer;
+}
+
+.back-to-admin-button:active {
+  transform: scale(0.98);
 }
 
 /* =========================
@@ -727,4 +752,3 @@ button:hover {
     font-size: 10px;
   }
 }
-

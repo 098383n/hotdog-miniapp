@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  limit,
-} from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 
 import { db } from "./firebase/config";
-import AdminPanel from "./components/AdminPanel/AdminPanel";
 
 import "./App.css";
 
@@ -18,143 +11,32 @@ function App() {
 
   const [telegramUser, setTelegramUser] = useState(null);
 
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecking, setAdminChecking] = useState(true);
-
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
 
   // =========================
-  // TELEGRAM + ADMIN
+  // TELEGRAM + PRODUCTS
   // =========================
 
   useEffect(() => {
-    async function checkAdmin(telegramId) {
-      // Firestore "==" ishlashi uchun telegramId turi (string yoki number)
-      // bazadagi qiymat bilan aynan bir xil bo'lishi kerak.
-      // Bazada qanday saqlanganini bilmasak ham ishlashi uchun,
-      // ikkala turni ham tekshiramiz.
-      const idAsNumber = Number(telegramId);
-      const idAsString = String(telegramId);
-
-      const candidates = Number.isNaN(idAsNumber)
-        ? [idAsString]
-        : [idAsNumber, idAsString];
-
-      for (const candidateId of candidates) {
-        // MUHIM: faqat bitta where() ishlatilmoqda (telegramId bo'yicha).
-        // Ikkita turli maydon bo'yicha (telegramId + role) composite query
-        // Firestore'da maxsus index talab qiladi va index bo'lmasa
-        // "failed-precondition" xatoligi bilan yiqiladi (catch blokida
-        // "ushlanib qoladi" va isAdmin jimgina false bo'lib qoladi).
-        // Shu sababli role tekshiruvini JS tomonida qilamiz.
-        const adminQuery = query(
-          collection(db, "users"),
-          where("telegramId", "==", candidateId),
-          limit(1)
-        );
-
-        const adminSnapshot = await getDocs(adminQuery);
-
-        console.log(
-          `Admin tekshiruvi (telegramId=${candidateId}, turi=${typeof candidateId}):`,
-          adminSnapshot.size,
-          "ta hujjat topildi"
-        );
-
-        if (!adminSnapshot.empty) {
-          const userData = adminSnapshot.docs[0].data();
-
-          console.log("Topilgan foydalanuvchi role:", userData.role);
-
-          if (userData.role === "admin") {
-            return true;
-          }
-        }
-      }
-
-      return false;
-    }
-
     async function initializeApp() {
-      try {
-        const tg = window.Telegram?.WebApp;
+      const tg = window.Telegram?.WebApp;
 
-        let user = null;
+      if (tg) {
+        tg.ready();
+        tg.expand();
 
-        // =========================
-        // TELEGRAM USER
-        // =========================
+        const user = tg.initDataUnsafe?.user;
 
-        if (tg) {
-          tg.ready();
-          tg.expand();
+        console.log("Telegram user:", user);
 
-          user = tg.initDataUnsafe?.user;
-
-          console.log("Telegram user:", user);
-          console.log("Telegram ID:", user?.id);
-
-          if (user) {
-            setTelegramUser(user);
-          }
-        } else {
-          console.log(
-            "Telegram WebApp topilmadi. Ilova Telegram ichida ochilmagan bo'lishi mumkin."
-          );
-
-          // VAQTINCHALIK: faqat lokal test uchun (production'da OLIB TASHLANG).
-          // Brauzerda quyidagicha ochib test qilish mumkin:
-          // http://localhost:3000/?admin_test_id=1874581050
-          const testId = new URLSearchParams(
-            window.location.search
-          ).get("admin_test_id");
-
-          if (testId) {
-            user = { id: testId, first_name: "Test Admin" };
-            console.log(
-              "DEV MODE: URL orqali test Telegram ID ishlatilmoqda:",
-              testId
-            );
-            setTelegramUser(user);
-          }
+        if (user) {
+          setTelegramUser(user);
         }
-
-        // =========================
-        // ADMIN TEKSHIRUVI
-        // =========================
-
-        if (user?.id) {
-          console.log(
-            "Admin tekshirilmoqda. Telegram ID:",
-            user.id
-          );
-
-          const isUserAdmin = await checkAdmin(user.id);
-
-          if (isUserAdmin) {
-            console.log("ADMIN TOPILDI!");
-            setIsAdmin(true);
-          } else {
-            console.log(
-              "Bu Telegram foydalanuvchi admin emas (yoki 'users' collectionida mos hujjat yo'q)."
-            );
-            setIsAdmin(false);
-          }
-        } else {
-          console.log("Telegram ID topilmadi.");
-          setIsAdmin(false);
-        }
-      } catch (error) {
-        // Bu yerda ko'pincha Firestore Security Rules ruxsat bermasa
-        // ("permission-denied") yoki tarmoq muammosi bo'lsa xatolik chiqadi.
-        console.error("Admin tekshirishda xatolik:", error);
-        console.error("Xatolik kodi:", error?.code);
-        console.error("Xatolik matni:", error?.message);
-
-        setIsAdmin(false);
-      } finally {
-        setAdminChecking(false);
+      } else {
+        console.log(
+          "Telegram WebApp topilmadi. Ilova Telegram ichida ochilmagan bo'lishi mumkin."
+        );
       }
 
       // =========================
@@ -162,9 +44,7 @@ function App() {
       // =========================
 
       try {
-        const snapshot = await getDocs(
-          collection(db, "products")
-        );
+        const snapshot = await getDocs(collection(db, "products"));
 
         const productsList = snapshot.docs.map((item) => ({
           id: item.id,
@@ -175,10 +55,7 @@ function App() {
 
         console.log("Mahsulotlar:", productsList);
       } catch (error) {
-        console.error(
-          "Mahsulotlarni yuklashda xatolik:",
-          error
-        );
+        console.error("Mahsulotlarni yuklashda xatolik:", error);
       } finally {
         setLoading(false);
       }
@@ -186,27 +63,6 @@ function App() {
 
     initializeApp();
   }, []);
-
-  // =========================
-  // ADMIN LOADING
-  // =========================
-
-  if (adminChecking) {
-    return (
-      <div className="loading">
-        <div className="loading-icon">👑</div>
-        <p>Foydalanuvchi tekshirilmoqda...</p>
-      </div>
-    );
-  }
-
-  // =========================
-  // ADMIN PANEL
-  // =========================
-
-  if (isAdmin) {
-    return <AdminPanel />;
-  }
 
   // =========================
   // PRODUCTS LOADING
